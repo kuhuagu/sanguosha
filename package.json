@@ -1,0 +1,13 @@
+{
+  "name": "sanguosha-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "三国杀·风林火山 —— 单文件客户端 + 房间中继服务器（零依赖）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

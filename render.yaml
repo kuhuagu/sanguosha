@@ -1,0 +1,12 @@
+# Render.com Blueprint —— 仓库根目录放此文件，在 Render 新建时会自动识别整个服务配置
+# 用法：GitHub 仓库连上 Render 后选 Blueprint，点 Apply 即部署，无需任何手动设置
+services:
+  - type: web
+    name: sanguosha
+    runtime: node
+    plan: free
+    buildCommand: echo no-dependencies
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

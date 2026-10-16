@@ -1,0 +1,17 @@
+# fly.io 部署配置（新加坡区，国内直连体验最好）
+# 用法：装 flyctl 后在目录里执行  fly launch --no-deploy && fly deploy
+app = "sanguosha-wfls"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
