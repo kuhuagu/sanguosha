@@ -1320,7 +1320,7 @@ async function askP(p, title, sub, labels, pic){
 function showRules(){
   return askModal("玩法规则",
     `<b>目标</b>：主公/忠臣——消灭所有反贼与内奸；反贼——杀死主公；内奸——成为最后存活者。<br>
-     <b>模式</b>：标准5人（主1忠1反2内1）／<b>军争8人</b>（主1忠2反4内1，160张军争牌堆）／<b>2v2无身份团战</b>（蓝队1·2位 vs 红队3·4位，同队相邻落座，火力和锦囊只打敌军、AOE敌我不分，灭对方全队获胜，杀敌无赏、无主公惩罚；<b>同袍机制：队友阵亡时幸存队友摸一张牌</b>）——主页选模式，联机由房主在大厅选择。<br>
+     <b>模式</b>：标准5人（主1忠1反2内1）／<b>军争8人</b>（主1忠2反4内1，160张军争牌堆）／<b>2v2无身份团战</b>（蓝队1·2位 vs 红队3·4位，同队相邻落座，<b>杀与锦囊可对队友使用（规则合法即可）</b>、AOE敌我不分，灭对方全队获胜，杀敌无赏、无主公惩罚；<b>同袍机制：队友阵亡时幸存队友摸一张牌</b>）——主页选模式，联机由房主在大厅选择。<br>
      <b>李羿杀</b>：八人军争同规则，唯将池换为作者<b>李羿</b>的8名自制武将（新增势力：抗/魔/神/贼/梗），主公不额外加血；技能中的简化均以「（简化：…）」标注于技能说明内。<br>
      <b>流程</b>：每回合严格按 <b>开始→判定→摸牌→出牌→弃牌→结束</b> 六阶段进行，角色牌上方会弹出阶段提示。出牌阶段每回合1张【杀】（诸葛连弩/张飞不限；【桃】限1次；【酒】限1次且加伤效果仅限当回合有效，回合结束未消耗则消散），弃牌阶段弃至手牌≤体力值。<br>
      <b>交互</b>：点击<b>其他角色</b>的头像/技能名 → 在其座位旁弹出小菜单（💐送花 / 🥚砸鸡蛋 / 关闭）；点击自己查看武将档案；点击装备与判定标签查看卡牌说明；顶部「📚 图鉴」浏览全部武将与卡牌，「🔊 音效」开关音效台词。<br>
@@ -1340,7 +1340,7 @@ function killTargets(p){ // 可以成为 p 的【杀】目标的角色（马岱�
   const first = hasSkill(p,"觊延") && !p.f.jiUsed;
   // 李羿·思反：对【主公】使用【杀】无距离限制
   const sirfan = (g, t) => g.gid==="liyi" && skillOn(g,"思反") && !ISDUI() && t.role==="lord";
-  return alive().filter(t=>t!==p && !isMate(p,t) && (first || sirfan(p,t) || dist(p,t)<=rangeOf(p)) && !(hasSkill(t,"空城") && t.hand.length===0));
+  return alive().filter(t=>t!==p && (first || sirfan(p,t) || dist(p,t)<=rangeOf(p)) && !(hasSkill(t,"空城") && t.hand.length===0));   // 2v2 允许对队友出杀（AI 经 threatScore=-100 永不主动打队友）
 }
 function killAttr(p, card){ // 杀的火焰/雷电属性（朱雀羽扇将普通杀化火）
   if(card.n==="火杀") return "fire";
@@ -1358,14 +1358,15 @@ function killOk(p, card, t){ // 于禁毅重（技能，青釭剑不无视）/ �
   return true;
 }
 function trick1Targets(p, ignoreDist, isSnatch){ // 顺手/拆（拆无距离限制；谦逊挡顺手）
-  return alive().filter(t=>t!==p && !isMate(p,t) && (ignoreDist || dist(p,t)<=1) && cardsOf(t)>0 && !(isSnatch && hasSkill(t,"谦逊")));
+  return alive().filter(t=>t!==p && (ignoreDist || dist(p,t)<=1) && cardsOf(t)>0 && !(isSnatch && hasSkill(t,"谦逊")));
 }
-function delayTargets(p){ return alive().filter(t=>t!==p && !isMate(p,t) && t.judge.length===0 && !hasSkill(t,"谦逊")); }
+function delayTargets(p){ return alive().filter(t=>t!==p && t.judge.length===0 && !hasSkill(t,"谦逊")); }
 
 // —— 模式辅助：state.mode="id" 身份战（标准5人/军争8人）；"dui" 2v2无身份团战（蓝队1·2位 vs 红队3·4位，同队相邻） ——
 function ISDUI(){ return !!state && state.mode==="dui"; }
 function isMate(a,b){ return ISDUI() && a.team===b.team; }
-function foes(p){ return alive().filter(t=>t!==p && !isMate(p,t)); }
+function foes(p){ return alive().filter(t=>t!==p && !isMate(p,t)); }   // AI 视角：只认敌人
+function ppl(p){ return alive().filter(t=>t!==p); }                     // 人类/规则视角：2v2 允许对队友使用的一切合法目标候选（AI 绝不经此选靶）
 function teamName(p){ return p.team===0?"蓝":"红"; }
 
 // —— 出【闪】判定（true=已闪） ——
@@ -1615,7 +1616,8 @@ async function useKill(p, t, card, asPeachless){
   // 方天画戟：以最后的手牌作【杀】时，额外横扫至多两名攻击范围内角色
   const wq = weapon(p);
   if(wq && wq.eff==="fangtian" && !card.virt && p.alive && !state.over && p.hand.length===0){
-    const extra = killTargets(p).filter(x=>x!==t && killOk(p,card,x));
+    let extra = killTargets(p).filter(x=>x!==t && killOk(p,card,x));
+    if(p.ai) extra = extra.filter(x=>!isMate(p,x));   // AI 方天横扫永不波及队友（人类可自选）
     for(const x of extra.slice(0,2)){
       if(state.over || !p.alive) break;
       addLog(`${gname(p)} 的【方天画戟】：画戟横扫，追加 ${gname(x)} 为目标！`,"skill");
@@ -2486,7 +2488,7 @@ async function aiDecide(p){
   }
   const dly = find("乐不思蜀") || find("兵粮寸断") || find("水淹七军");
   if(dly){
-    const tl = aiBestTargets(p, delayTargets(p));
+    const tl = aiBestTargets(p, delayTargets(p)).filter(x=>!ISDUI() || threatScore(p,x)>0);   // 2v2：AI 永不把延时锦囊放到队友头上
     if(tl.length) return async()=>{
       useCardFrom(p,dly);
       if(p.gid==="liyi_shen") liyiAfterUse(p,dly);
@@ -2901,12 +2903,12 @@ function useTargetSpec(p, card, use){
     cand = killTargets(p).filter(t=>(killOk(p,card,t) || (p.gid==="leyi" && !RED(card.s) && card.t==="kill"))).map(t=>t.id);   // 乐羿即墨：黑杀无视防具（仁王盾/藤甲不挡）；killTargets已含觊延/思反距离豁免
     msg = first? "选择【杀】的目标（【觊延】首杀无距离限制！）" : (p.gid==="liyi" && skillOn(p,"思反") ? "选择【杀】的目标（【思反】对主公无距离限制）" : "选择【杀】的目标");
   }
-  else if(k==="duel"){ cand = foes(p).map(t=>t.id); msg="选择【决斗】的目标"; }
+  else if(k==="duel"){ cand = ppl(p).map(t=>t.id); msg="选择【决斗】的目标"; }
   else if(k==="snatch"){ cand = trick1Targets(p, use.asIf==="奇袭", true).map(t=>t.id); msg="选择【顺手牵羊】的目标"; }
   else if(k==="dismantle"){ cand = trick1Targets(p, true, false).map(t=>t.id); msg="选择【过河拆桥】的目标（无距离限制）"; }
   else if(k==="delay"){ cand = delayTargets(p).map(t=>t.id); msg=`选择【${card.n}】的目标`; }
   else if(k==="chain"){ cand = alive().map(t=>t.id); msg="选择【铁索连环】的目标（1~2名，可含自己：重置自身连环）"; multi = 2; }
-  else if(k==="fireatk"){ cand = foes(p).filter(t=>t.hand.length>0).map(t=>t.id); msg="选择【火攻】的目标（须有手牌）"; }
+  else if(k==="fireatk"){ cand = ppl(p).filter(t=>t.hand.length>0).map(t=>t.id); msg="选择【火攻】的目标（须有手牌）"; }
   else if(k==="jiedao"){ cand = alive().filter(t=>t!==p && t.eq.weapon).map(t=>t.id); msg="选择【借刀杀人】的目标（须装备武器）"; }
   return {cand, msg, multi};
 }
@@ -3058,7 +3060,7 @@ function availableSkills(p){
   if(hasSkill(p,"裸衣") && !F.luoyi) L.push("裸衣");
   if(hasSkill(p,"神速") && !F.shensu) L.push("神速");
   if(hasSkill(p,"青囊") && !F.qingnang && p.hand.length>0 && alive().some(t=>t.hp<t.maxHp)) L.push("青囊");
-  if(hasSkill(p,"离间") && !F.lijian && p.hand.length>=1 && foes(p).filter(t=>!isFem(t)).length>=2) L.push("离间");
+  if(hasSkill(p,"离间") && !F.lijian && p.hand.length>=1 && ppl(p).filter(t=>!isFem(t)).length>=2) L.push("离间");
   if(hasSkill(p,"结姻") && !F.jieyin && p.hand.length>=2 && p.hp<p.maxHp && alive().some(t=>t!==p && !isFem(t) && t.hp<t.maxHp)) L.push("结姻");
   // —— 李羿杀·主动技按钮（全部按 gid 判定，不干扰旧将）——
   if(p.gid==="liyi_zhong" && !cx(p).weihongUsed && alive().some(t=>t!==p)) L.push("卫红");
@@ -3154,14 +3156,14 @@ async function actKuru(p){
 }
 async function actFanjian(p){
   if(p.f.fanjian || p.hp<=1 || !p.hand.length) return;
-  const cand = foes(p).map(t=>t.id);
+  const cand = ppl(p).map(t=>t.id);   // 反间可指向任何其他人（含2v2队友）；AI反间走 doFanjian 自带 foe 筛选
   const tid = await pickTargetUI(p, cand, "【反间】：选择要你猜花色的角色");
   if(tid==null){ render(); return; }
   await doFanjian(p, P(tid)); render();
 }
 async function actQiangxi(p){
   if(p.f.qiangxi || p.hp<=1) return;
-  const cand = foes(p).filter(t=>dist(p,t)<=1).map(t=>t.id);
+  const cand = ppl(p).filter(t=>dist(p,t)<=1).map(t=>t.id);   // 强袭可指向含2v2队友在内的任何距离1角色（AI强袭自带foe筛选）
   if(!cand.length){ addLog("距离1以内没有目标","sys"); return; }
   const tid = await pickTargetUI(p, cand, "【强袭】：选择距离1以内的目标（代价：失去1点体力）");
   if(tid==null){ render(); return; }
@@ -3177,7 +3179,7 @@ async function actLuoyi(p){
 }
 async function actShensu(p){
   if(p.f.shensu) return;
-  const cand = alive().filter(t=>t!==p && !isMate(p,t) && killOk(p,{s:"♠"},t) && !(hasSkill(t,"空城")&&t.hand.length===0)).map(t=>t.id);
+  const cand = alive().filter(t=>t!==p && killOk(p,{s:"♠"},t) && !(hasSkill(t,"空城")&&t.hand.length===0)).map(t=>t.id);   // 神速可指向含2v2队友（AI神速自带foe筛选）
   if(!cand.length){ addLog("没有合法目标","sys"); return; }
   const tid = await pickTargetUI(p, cand, "【神速】：选择目标（这一刀无视距离）");
   if(tid==null){ render(); return; }
@@ -3204,7 +3206,7 @@ async function actQingnang(p){
 }
 async function actLijian(p){
   if(p.f.lijian || !p.hand.length) return;
-  const males = foes(p).filter(t=>!isFem(t));
+  const males = ppl(p).filter(t=>!isFem(t));   // 离间可令任何两名其他男性角色决斗（含2v2队友互殴）；AI离间自带foe筛选
   if(males.length<2){ addLog("场上男性角色不足两人","sys"); return; }
   const ids = await pickOwnCards(p, 1, "【离间】：弃置一张手牌", "确定");
   if(!ids || !ids.length){ render(); return; }
@@ -3480,7 +3482,7 @@ function newGameReal(plan){
   }
   state.players.forEach(p=>draw(p,4));
   if(dui){
-    addLog(`牌局开始（2v2团战）：蓝队（1、2号位相邻）对阵 红队（3、4号位相邻）——灭对方全队即胜，无身份奖惩；同袍：队友阵亡时幸存队友摸1张牌`,"turn");
+    addLog(`牌局开始（2v2团战）：蓝队（1、2号位相邻）对阵 红队（3、4号位相邻）——灭对方全队即胜，无身份奖惩；杀与锦囊可对队友使用；同袍：队友阵亡时幸存队友摸1张牌`,"turn");
   }else{
     const cnt = r => roles.filter(x=>x===r).length;
     addLog(`牌局开始（${n}人场${n===8?"·军争":""}）：主公1、忠臣${cnt("loyal")}、反贼${cnt("rebel")}、内奸${cnt("minion")}`,"turn");
