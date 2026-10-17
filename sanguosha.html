@@ -1301,7 +1301,7 @@ async function askP(p, title, sub, labels, pic){
 function showRules(){
   return askModal("玩法规则",
     `<b>目标</b>：主公/忠臣——消灭所有反贼与内奸；反贼——杀死主公；内奸——成为最后存活者。<br>
-     <b>模式</b>：标准5人（主1忠1反2内1）／<b>军争8人</b>（主1忠2反4内1，162张军争牌堆）／<b>2v2无身份团战</b>（蓝队1·3位 vs 红队2·4位交叉落座，火力和锦囊只打敌军、AOE敌我不分，灭对方全队获胜，杀敌无赏、无主公惩罚）——主页选模式，联机由房主在大厅选择。<br>
+     <b>模式</b>：标准5人（主1忠1反2内1）／<b>军争8人</b>（主1忠2反4内1，162张军争牌堆）／<b>2v2无身份团战</b>（蓝队1·2位 vs 红队3·4位，同队相邻落座，火力和锦囊只打敌军、AOE敌我不分，灭对方全队获胜，杀敌无赏、无主公惩罚）——主页选模式，联机由房主在大厅选择。<br>
      <b>李羿杀</b>：八人军争同规则，唯将池换为作者<b>李羿</b>的8名自制武将（新增势力：抗/魔/神/贼/梗），主公不额外加血；技能中的简化均以「（简化：…）」标注于技能说明内。<br>
      <b>流程</b>：每回合严格按 <b>开始→判定→摸牌→出牌→弃牌→结束</b> 六阶段进行，角色牌上方会弹出阶段提示。出牌阶段每回合1张【杀】（诸葛连弩/张飞不限；【桃】限1次），弃牌阶段弃至手牌≤体力值。<br>
      <b>交互</b>：点击<b>其他角色</b>的头像/技能名 → 在其座位旁弹出小菜单（💐送花 / 🥚砸鸡蛋 / 关闭）；点击自己查看武将档案；点击装备与判定标签查看卡牌说明；顶部「📚 图鉴」浏览全部武将与卡牌，「🔊 音效」开关音效台词。<br>
@@ -1340,7 +1340,7 @@ function trick1Targets(p, ignoreDist, isSnatch){ // 顺手/拆（拆无距离限
 }
 function delayTargets(p){ return alive().filter(t=>t!==p && !isMate(p,t) && t.judge.length===0 && !hasSkill(t,"谦逊")); }
 
-// —— 模式辅助：state.mode="id" 身份战（标准5人/军争8人）；"dui" 2v2无身份团战（蓝队1·3位 vs 红队2·4位） ——
+// —— 模式辅助：state.mode="id" 身份战（标准5人/军争8人）；"dui" 2v2无身份团战（蓝队1·2位 vs 红队3·4位，同队相邻） ——
 function ISDUI(){ return !!state && state.mode==="dui"; }
 function isMate(a,b){ return ISDUI() && a.team===b.team; }
 function foes(p){ return alive().filter(t=>t!==p && !isMate(p,t)); }
@@ -3390,7 +3390,7 @@ function newGameReal(plan){
     const lb = (g.hp0 || inLiyiMode()) ? 0 : lordBonus;   // 李羿杀模式主公不额外加血
     state.players.push({
       id:i, isHuman:i===(plan.you||0), ctrl, ai:ctrl==="ai", pname:(plan.names&&plan.names[i])||null,
-      gid, role:roles?roles[i]:null, team:i%2,
+      gid, role:roles?roles[i]:null, team:(i/2)|0,   // 2v2：同队相邻落座（蓝=1、2号位 红=3、4号位）
       roleKnown: roles ? (roles[i]==="lord" || i===(plan.you||0)) : false,
       maxHp:g.hp+lb, hp:baseHp+lb, hand:[], judge:[],
       eq:{weapon:null,armor:null,plus:null,minus:null}, alive:true, f:{},
@@ -3399,7 +3399,7 @@ function newGameReal(plan){
   }
   state.players.forEach(p=>draw(p,4));
   if(dui){
-    addLog(`牌局开始（2v2团战）：蓝队（1、3号位）对阵 红队（2、4号位）——灭对方全队即胜，无身份奖惩`,"turn");
+    addLog(`牌局开始（2v2团战）：蓝队（1、2号位相邻）对阵 红队（3、4号位相邻）——灭对方全队即胜，无身份奖惩`,"turn");
   }else{
     const cnt = r => roles.filter(x=>x===r).length;
     addLog(`牌局开始（${n}人场${n===8?"·军争":""}）：主公1、忠臣${cnt("loyal")}、反贼${cnt("rebel")}、内奸${cnt("minion")}`,"turn");
@@ -3427,7 +3427,7 @@ function draftWho(p){ // 选将阶段称谓（此时将未定，不能调 gname�
 function draftSub(p){ // 本地人类选将面板上的身份/队伍说明
   if(ISDUI()){
     const mt = state.players.find(q=>q!==p && q.team===p.team);
-    return `你在 <b>${teamName(p)}队（${p.team===0?"1、3":"2、4"}号位）</b>　队友：<b>${mt?draftWho(mt):"—"}</b><br>`
+    return `你在 <b>${teamName(p)}队（${p.team===0?"1、2":"3、4"}号位，同队相邻）</b>　队友：<b>${mt?draftWho(mt):"—"}</b><br>`
          + `两人共享本 10 张候选池：先选者优先，撞名由系统自动改派。`;
   }
   const R = {lord:"主公（全场可见，体力+1）", loyal:"忠臣", rebel:"反贼", minion:"内奸"};
