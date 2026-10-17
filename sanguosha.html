@@ -385,7 +385,7 @@ const GENERALS = {
 const TRICK_DESC = {
   "杀":"出牌阶段，对攻击范围内一名角色使用：其需打出【闪】，否则受到1点伤害","闪":"当你成为【杀】的目标时打出，抵消此【杀】",
   "火杀":"属性【杀】：命中造成火焰伤害（藤甲伤害+1，可沿铁索连环传导）","雷杀":"属性【杀】：命中造成雷电伤害（可沿铁索连环传导）",
-  "桃":"出牌阶段或濒死时使用：回复1点体力","酒":"出牌阶段（限一次）：下一张【杀】伤害+1；濒死时自救回复1点",
+  "桃":"出牌阶段或濒死时使用：回复1点体力","酒":"出牌阶段（限一次）：本回合下一张【杀】伤害+1（回合结束酒意消散）；濒死时自救回复1点",
   "决斗":"出牌：你与目标轮流出【杀】，先不出者受到1点伤害","南蛮入侵":"出牌：其他角色需打出【杀】，否则受到1点伤害",
   "万箭齐发":"出牌：其他角色需打出【闪】，否则受到1点伤害","顺手牵羊":"出牌：获得距离1以内一名角色的一张牌",
   "过河拆桥":"出牌：弃置一名其他角色的一张牌（无距离限制）","乐不思蜀":"延时锦囊：判定阶段非♥则跳过出牌阶段",
@@ -1219,14 +1219,12 @@ function render(){
   // 手牌
   const ui = state.ui;
   let handHtml = "";
-  const grouped = {};
-  h.hand.forEach(c=>{ const k=c.n+c.s+c.num; (grouped[k]=grouped[k]||{card:c,count:0,ids:[]}); grouped[k].count++; grouped[k].ids.push(c.id); });
-  for(const k in grouped){ const g=grouped[k];
-    const sel = g.ids.some(id=>ui&&ui.mode==="pick"&&ui.sel&&ui.sel.has(id));
-    const dim = ui && (ui.mode==="target"||ui.mode==="multi") ? true : (!canHumanClick(g.card) && ui && ui.mode!=="pick");
-    handHtml += cardHTML(g.card,{sel, dim:!sel&&dim, count:g.count>1?g.count:undefined,
-      onclick:`onHumanCard(${g.ids[0]})`});
-  }
+  // 手牌逐张原样渲染（同名同点合并显示曾导致"手牌数与看到的牌不符"，现与座位计数严格1:1）
+  h.hand.forEach(c=>{
+    const sel = ui&&ui.mode==="pick"&&ui.sel&&ui.sel.has(c.id);
+    const dim = ui && (ui.mode==="target"||ui.mode==="multi") ? true : (!canHumanClick(c) && ui && ui.mode!=="pick");
+    handHtml += cardHTML(c,{sel, dim:!sel&&dim, onclick:`onHumanCard(${c.id})`});
+  });
   document.getElementById("handWrap").innerHTML = handHtml;
   // 技能按钮（与远程回合面板共用 availableSkills）
   let sk = "";
@@ -1322,9 +1320,9 @@ async function askP(p, title, sub, labels, pic){
 function showRules(){
   return askModal("玩法规则",
     `<b>目标</b>：主公/忠臣——消灭所有反贼与内奸；反贼——杀死主公；内奸——成为最后存活者。<br>
-     <b>模式</b>：标准5人（主1忠1反2内1）／<b>军争8人</b>（主1忠2反4内1，160张军争牌堆）／<b>2v2无身份团战</b>（蓝队1·2位 vs 红队3·4位，同队相邻落座，火力和锦囊只打敌军、AOE敌我不分，灭对方全队获胜，杀敌无赏、无主公惩罚）——主页选模式，联机由房主在大厅选择。<br>
+     <b>模式</b>：标准5人（主1忠1反2内1）／<b>军争8人</b>（主1忠2反4内1，160张军争牌堆）／<b>2v2无身份团战</b>（蓝队1·2位 vs 红队3·4位，同队相邻落座，火力和锦囊只打敌军、AOE敌我不分，灭对方全队获胜，杀敌无赏、无主公惩罚；<b>同袍机制：队友阵亡时幸存队友摸一张牌</b>）——主页选模式，联机由房主在大厅选择。<br>
      <b>李羿杀</b>：八人军争同规则，唯将池换为作者<b>李羿</b>的8名自制武将（新增势力：抗/魔/神/贼/梗），主公不额外加血；技能中的简化均以「（简化：…）」标注于技能说明内。<br>
-     <b>流程</b>：每回合严格按 <b>开始→判定→摸牌→出牌→弃牌→结束</b> 六阶段进行，角色牌上方会弹出阶段提示。出牌阶段每回合1张【杀】（诸葛连弩/张飞不限；【桃】限1次），弃牌阶段弃至手牌≤体力值。<br>
+     <b>流程</b>：每回合严格按 <b>开始→判定→摸牌→出牌→弃牌→结束</b> 六阶段进行，角色牌上方会弹出阶段提示。出牌阶段每回合1张【杀】（诸葛连弩/张飞不限；【桃】限1次；【酒】限1次且加伤效果仅限当回合有效，回合结束未消耗则消散），弃牌阶段弃至手牌≤体力值。<br>
      <b>交互</b>：点击<b>其他角色</b>的头像/技能名 → 在其座位旁弹出小菜单（💐送花 / 🥚砸鸡蛋 / 关闭）；点击自己查看武将档案；点击装备与判定标签查看卡牌说明；顶部「📚 图鉴」浏览全部武将与卡牌，「🔊 音效」开关音效台词。<br>
      <b>距离</b>：【杀】需距离≤攻击范围（武器决定）；【顺手牵羊】需距离≤1；<b>【过河拆桥】无距离限制</b>；-1马接近，+1马远离。<br>
      <b>牌组</b>：按官方花色点数表重建160张（标准104＋EX扩展4＋火包52，已删银月枪与木牛流马），每张牌配实体扫描图——<b>火杀/雷杀</b>（属性伤害，藤甲遇火+1，沿⛓铁索连环传导）、<b>无中生有/桃园结义/五谷丰登（每人取牌全场展示）/铁索连环（新增<b>重铸</b>：弃此牌摸一张）/火攻/借刀杀人/无懈可击</b>、<b>八卦阵×2（判定红色即视为【闪】）/仁王盾/藤甲×2/白银狮子（伤害上限1点，离开装备区回复1点）</b>、十二武器（诸葛连弩×2/雌雄双股剑（异性被【杀】后弃一或令你摸一）/青龙偃月刀（杀被闪抵消可继续出杀追击）/麒麟弓/青釭剑（杀无视防具）/贯石斧/丈八蛇矛（两张手牌当【杀】使用或打出）/方天画戟/古锭刀/寒冰剑/朱雀羽扇）与七匹骏马。<br>
@@ -2223,6 +2221,12 @@ async function die(t, killer){
       }
     }
   }
+  // 2v2团战·同袍：队友阵亡，幸存队友悲愤摸一张牌
+  if(ISDUI() && !state.over){
+    const mate = alive().find(q=>q.team===t.team);
+    if(mate){ const g2 = draw(mate,1);
+      if(g2.length){ addLog(`${gname(mate)}【同袍】：队友陨落，悲愤摸1张牌`,"heal"); await flyDraw(mate,g2.length); } }
+  }
   render(); await sleep(500);
   checkWin();
 }
@@ -2635,6 +2639,7 @@ async function takeTurn(p){
   if(hasSkill(p,"闭月") && p.alive && !state.over){ const g=draw(p,2); if(g.length) addLog(`${gname(p)}【闭月】：摸${g.length}张牌`,"skill"); }
   await actZhemingAtEnd(p);   // 神·哲铭兜底：出牌阶段结束时发动（若被跳过/乐不思蜀仍可补发动；每回合一次）
   await liyiTurnEnd(p);   // 李羿杀·结束阶段钩子（卫红/良政/追习）
+  if(p.f.drunk || p.f.wineNext){ p.f.drunk=false; p.f.wineNext=false; addLog(`${gname(p)} 的【酒】力随回合结束消散`,"sys"); }   // 酒仅限当回合：未消耗的酒意不跨回合（含他人回合被借刀出的杀）
   render(); await sleep(250);
 }
 // —— 敌天加权弃牌（黑2红0，超额优先弃黑） ——
@@ -2827,7 +2832,7 @@ function legalUses(p, card){
   const T = card.t;
   if(T==="eq") uses.push({label:`装备【${card.n}】`, kind:"equip"});
   if(card.n==="桃" && p.hp<p.maxHp && !p.f.peachUsed) uses.push({label:"使用【桃】回复体力", kind:"peach"});
-  if(card.n==="酒" && !p.f.wineUsed) uses.push({label:"饮酒（下一张杀伤害+1）", kind:"wine"});
+  if(card.n==="酒" && !p.f.wineUsed) uses.push({label:"饮酒（本回合内杀伤害+1）", kind:"wine"});
   if(card.t==="kill" && canKillMore(p)) uses.push({label:`使用【${card.n}】`, kind:"kill"});
   if(["顺手牵羊","过河拆桥"].includes(card.n)) uses.push({label:`使用【${card.n}】`, kind:T});
   if(["决斗"].includes(card.n)) uses.push({label:"使用【决斗】", kind:"duel"});
@@ -3475,7 +3480,7 @@ function newGameReal(plan){
   }
   state.players.forEach(p=>draw(p,4));
   if(dui){
-    addLog(`牌局开始（2v2团战）：蓝队（1、2号位相邻）对阵 红队（3、4号位相邻）——灭对方全队即胜，无身份奖惩`,"turn");
+    addLog(`牌局开始（2v2团战）：蓝队（1、2号位相邻）对阵 红队（3、4号位相邻）——灭对方全队即胜，无身份奖惩；同袍：队友阵亡时幸存队友摸1张牌`,"turn");
   }else{
     const cnt = r => roles.filter(x=>x===r).length;
     addLog(`牌局开始（${n}人场${n===8?"·军争":""}）：主公1、忠臣${cnt("loyal")}、反贼${cnt("rebel")}、内奸${cnt("minion")}`,"turn");
